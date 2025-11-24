@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrega - Clasificación Titanic (Regresión logística / Red neuronal)</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#f3f6fb;--card:#fff;--accent:#0b66ff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);margin:0;color:#0f172a}
+    .wrap{max-width:980px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:16px}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(12,20,40,0.06)}
+
+    label{display:block;font-size:13px;color:#0f172a;margin-top:10px}
+    input[type=file]{display:block;margin-top:6px}
+    .small{font-size:13px;color:var(--muted)}
+
+    select,input[type=number],input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8;margin-top:6px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;border:0;background:var(--accent);color:white;cursor:pointer}
+    .btn.secondary{background:white;border:1px solid #e6eef8;color:#0f172a}
+    .tabs{display:flex;gap:8px;margin-top:10px}
+    .tab{padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+    .tab.active{background:var(--accent);color:white}
+
+    #preview{max-height:360px;overflow:auto;margin-top:8px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:6px;border-bottom:1px solid #f1f5f9;text-align:left;font-size:13px}
+
+    .status{margin-top:10px;font-size:13px;color:var(--muted)}
+    .metrics{display:flex;gap:8px;margin-top:12px}
+    .metric{flex:1;background:#fff8ef;border-radius:8px;padding:10px;border:1px solid #ffe9c8}
+
+    .resultBox{padding:12px;border-radius:10px;background:linear-gradient(180deg,#fbfffd,#f0fff6);border:1px solid #dff4e6;margin-top:10px}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    .explain{margin-top:8px;font-size:13px;color:#233; background:#f8fbff;padding:10px;border-radius:8px;border:1px solid #e7f0ff}
+
+    @media(max-width:880px){.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Clasificación Titanic — Entrega (Archivo único)</h1>
+        <p class="lead">Sube tu dataset (Kaggle) y entrena: Regresión Logística o Red Neuronal. Todo en español y en un solo archivo.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Panel izquierdo: carga y parámetros -->
+      <div class="card">
+        <label for="fileInput">1. Cargar dataset (CSV o Excel)</label>
+        <input id="fileInput" type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+        <div class="small" style="margin-top:6px">
+          El archivo debe incluir estas columnas (encabezados): <br>
+          <b>PassengerId</b>  <b>Survived</b>  <b>Pclass</b>  <b>Name</b>  <b>Sex</b>  <b>Age</b>  <b>SibSp</b>  <b>Parch</b>  <b>Ticket</b>  <b>Fare</b>  <b>Cabin</b>  <b>Embarked</b>
+        </div>
+
+        <label style="margin-top:14px">2. Elegir modelo</label>
+        <div class="tabs">
+          <div id="tabLog" class="tab active">Regresión logística</div>
+          <div id="tabNN" class="tab">Red neuronal</div>
+        </div>
+
+        <label style="margin-top:14px">3. Parámetros de entrenamiento</label>
+        <div class="explain">
+          <b>Épocas</b>: cuántas veces el modelo recorre (ve) todo el conjunto de entrenamiento. Más épocas = más aprendizaje (pero puede sobreajustar).<br>
+          <b>Tamaño de lote (Batch)</b>: cuántos ejemplos procesa el modelo antes de actualizar los pesos. Valores típicos: 16, 32, 64.<br>
+          <b>Porcentaje para prueba</b>: porcentaje de datos que reservamos para evaluar el modelo (ej. 20 = 20% test, 80% entrenamiento).
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1">
+            <label class="small">Épocas</label>
+            <input id="epochs" type="number" value="40" min="1" />
+          </div>
+          <div style="width:140px">
+            <label class="small">Tamaño de lote (Batch)</label>
+            <input id="batchSize" type="number" value="32" min="1" />
+          </div>
+        </div>
+
+        <label class="small" style="margin-top:8px">Porcentaje para prueba (test)</label>
+        <input id="testSplit" type="number" value="20" min="5" max="50" />
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="trainBtn" class="btn">Entrenar</button>
+          <button id="evalBtn" class="btn secondary">Evaluar / Predecir</button>
+          <button id="downloadBtn" class="btn secondary">Descargar predicciones</button>
+        </div>
+
+        <div class="status" id="status">Esperando archivo...</div>
+
+        <div class="metrics" id="metrics" style="display:none">
+          <div class="metric"><div class="small">Exactitud (accuracy)</div><div id="acc" style="font-weight:700;font-size:18px">-</div></div>
+          <div class="metric"><div class="small">Pérdida (loss)</div><div id="loss" style="font-weight:700;font-size:18px">-</div></div>
+          <div class="metric"><div class="small">Épocas</div><div id="epochLabel" style="font-weight:700;font-size:18px">-</div></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label class="small">Preprocesado (automático)</label>
+          <div class="small">
+            Se rellena <b>Age</b> y <b>Fare</b> con la mediana cuando faltan datos. Se codifica <b>Sex</b> (female = 1, male = 0). <b>Embarked</b> se convierte a 3 columnas (C/Q/S). Se usan las columnas: <b>Pclass, Sex, Age, SibSp, Parch, Fare, Embarked_C/Q/S</b>.
+          </div>
+        </div>
+
+        <div class="explain" style="margin-top:10px">
+          <b>Explicación de columnas:</b><br>
+          <b>SibSp</b>: número de hermanos / cónyuge a bordo (Siblings / Spouse).<br>
+          <b>Parch</b>: número de padres / hijos a bordo (Parents / Children).<br>
+          <b>Fare</b>: precio del billete (tarifa) pagado por el pasajero.
+        </div>
+      </div>
+
+      <!-- Panel derecho: vista previa y predicción rápida -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Vista previa y predicciones</strong><div class="small">Visualiza primeras filas, matriz de confusión y predicción por fila.</div></div>
+          <div><button id="showData" class="btn secondary">Ver datos</button></div>
+        </div>
+
+        <div id="preview" style="margin-top:12px"></div>
+        <div id="confusion" style="margin-top:12px"></div>
+        <div id="log" style="margin-top:12px"><pre id="logText" style="background:#0b1220;color:#dff3ff;padding:8px;border-radius:6px;max-height:160px;overflow:auto">Listo...</pre></div>
+
+        <hr style="margin:14px 0">
+        <h3>Predicción rápida (usar modelo entrenado)</h3>
+        <div class="small">Rellena los datos de un pasajero y pulsa "Predecir con el modelo".</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div>
+            <label>Clase (Pclass)</label>
+            <select id="pclass"><option value="1">1ra</option><option value="2">2da</option><option value="3">3ra</option></select>
+          </div>
+          <div>
+            <label>Sexo</label>
+            <select id="sex"><option value="male">Hombre</option><option value="female">Mujer</option></select>
+          </div>
+          <div>
+            <label>Edad</label>
+            <input id="age" type="number" value="30" />
+          </div>
+          <div>
+            <label>SibSp</label>
+            <input id="sibsp" type="number" value="0" />
+          </div>
+          <div>
+            <label>Parch</label>
+            <input id="parch" type="number" value="0" />
+          </div>
+          <div>
+            <label>Fare (tarifa)</label>
+            <input id="fare" type="number" value="32" />
+          </div>
+        </div>
+
+	
+
+
+
+        <div style="margin-top:10px">
+          <button id="predictBtn" class="btn">Predecir con el modelo</button>
+        </div>
+        <div id="quickResult" style="margin-top:10px"></div>
+
+        <footer>Abre este archivo localmente (doble clic) o ejecuta <code>python -m http.server</code> para servirlo.</footer>
+
+
+	<section id="red-neuronal">
+    <h2>Red Neuronal Artificial</h2>
+
+    <p style="text-align:center; max-width:700px; margin:auto;">
+        Arquitectura utilizada: 7 nodos de entrada (Pclass, Sex, Age, SibSp, Parch, Fare, Embarked), 
+        una capa oculta de 5 neuronas y una neurona de salida para clasificar si el pasajero sobrevive o no.
+    </p>
+
+    <div style="text-align:center; margin-top:20px;">
+        <svg width="800" height="500">
+
+            <!-- ======== CAPA DE ENTRADA (7 neuronas) ======== -->
+            <circle cx="100" cy="50"  r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="120" r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="190" r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="260" r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="330" r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="400" r="20" fill="#87CEFA"/>
+            <circle cx="100" cy="470" r="20" fill="#87CEFA"/>
+
+            <!-- ======== CAPA OCULTA (5 neuronas) ======== -->
+            <circle cx="350" cy="100" r="20" fill="#FFD700"/>
+            <circle cx="350" cy="200" r="20" fill="#FFD700"/>
+            <circle cx="350" cy="300" r="20" fill="#FFD700"/>
+            <circle cx="350" cy="400" r="20" fill="#FFD700"/>
+            <circle cx="350" cy="500" r="20" fill="#FFD700"/>
+
+            <!-- ======== CAPA DE SALIDA (1 neurona) ======== -->
+            <circle cx="600" cy="300" r="20" fill="#90EE90"/>
+
+            <!-- ======== CONEXIONES ENTRADA → OCULTA ======== -->
+            <g stroke="#555">
+                <!-- Conectar cada entrada con cada neurona oculta -->
+                <!-- Entrada 1 -->
+                <line x1="100" y1="50" x2="350" y2="100"/>
+                <line x1="100" y1="50" x2="350" y2="200"/>
+                <line x1="100" y1="50" x2="350" y2="300"/>
+                <line x1="100" y1="50" x2="350" y2="400"/>
+                <line x1="100" y1="50" x2="350" y2="500"/>
+
+                <!-- Entrada 2 -->
+                <line x1="100" y1="120" x2="350" y2="100"/>
+                <line x1="100" y1="120" x2="350" y2="200"/>
+                <line x1="100" y1="120" x2="350" y2="300"/>
+                <line x1="100" y1="120" x2="350" y2="400"/>
+                <line x1="100" y1="120" x2="350" y2="500"/>
+
+                <!-- Entrada 3 -->
+                <line x1="100" y1="190" x2="350" y2="100"/>
+                <line x1="100" y1="190" x2="350" y2="200"/>
+                <line x1="100" y1="190" x2="350" y2="300"/>
+                <line x1="100" y1="190" x2="350" y2="400"/>
+                <line x1="100" y1="190" x2="350" y2="500"/>
+
+                <!-- Entrada 4 -->
+                <line x1="100" y1="260" x2="350" y2="100"/>
+                <line x1="100" y1="260" x2="350" y2="200"/>
+                <line x1="100" y1="260" x2="350" y2="300"/>
+                <line x1="100" y1="260" x2="350" y2="400"/>
+                <line x1="100" y1="260" x2="350" y2="500"/>
+
+                <!-- Entrada 5 -->
+                <line x1="100" y1="330" x2="350" y2="100"/>
+                <line x1="100" y1="330" x2="350" y2="200"/>
+                <line x1="100" y1="330" x2="350" y2="300"/>
+                <line x1="100" y1="330" x2="350" y2="400"/>
+                <line x1="100" y1="330" x2="350" y2="500"/>
+
+                <!-- Entrada 6 -->
+                <line x1="100" y1="400" x2="350" y2="100"/>
+                <line x1="100" y1="400" x2="350" y2="200"/>
+                <line x1="100" y1="400" x2="350" y2="300"/>
+                <line x1="100" y1="400" x2="350" y2="400"/>
+                <line x1="100" y1="400" x2="350" y2="500"/>
+
+                <!-- Entrada 7 -->
+                <line x1="100" y1="470" x2="350" y2="100"/>
+                <line x1="100" y1="470" x2="350" y2="200"/>
+                <line x1="100" y1="470" x2="350" y2="300"/>
+                <line x1="100" y1="470" x2="350" y2="400"/>
+                <line x1="100" y1="470" x2="350" y2="500"/>
+            </g>
+
+            <!-- ======== CONEXIONES OCULTA → SALIDA ======== -->
+            <g stroke="#555">
+                <line x1="350" y1="100" x2="600" y2="300"/>
+                <line x1="350" y1="200" x2="600" y2="300"/>
+                <line x1="350" y1="300" x2="600" y2="300"/>
+                <line x1="350" y1="400" x2="600" y2="300"/>
+                <line x1="350" y1="500" x2="600" y2="300"/>
+            </g>
+
+        </svg>
+    </div>
+</section>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Librerías externas -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    // Variables globales
+    let rawData = null;
+    let features = null;
+    let labels = null;
+    let modelType = 'logistic'; // 'logistic' o 'nn'
+    let model = null;
+    let normParams = null;
+    const logText = el('logText');
+
+    // Gestión de pestañas (modelo)
+    el('tabLog').onclick = ()=>{ modelType='logistic'; setActive(); }
+    el('tabNN').onclick = ()=>{ modelType='nn'; setActive(); }
+    function setActive(){
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      if(modelType==='logistic') el('tabLog').classList.add('active'); else el('tabNN').classList.add('active');
+    }
+    setActive();
+
+    // Cargar archivo
+    el('fileInput').addEventListener('change', async (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      el('status').innerText = 'Cargando...';
+      rawData = await readFileToObjects(f);
+      el('status').innerText = `Archivo cargado — ${rawData.length} filas`;
+      appendLog(`Archivo: ${f.name} — ${rawData.length} filas`);
+      showPreview(rawData);
+    });
+
+    // Entrenar
+    el('trainBtn').onclick = async ()=>{
+      if(!rawData){ alert('Sube primero el dataset'); return; }
+      el('metrics').style.display='none';
+      el('status').innerText = 'Preprocesando...';
+
+      const pre = preprocess(rawData);
+      features = pre.X;
+      labels = pre.y;
+      normParams = pre.params;
+
+      appendLog('Preprocesado listo. Filas: ' + features.length);
+      el('status').innerText = 'Creando modelo...';
+      model = createModel(modelType, features[0].length);
+      appendLog('Modelo creado: ' + (modelType==='logistic' ? 'Regresión logística' : 'Red neuronal'));
+
+      const epochs = Number(el('epochs').value);
+      const batch = Number(el('batchSize').value);
+      const testSplit = Number(el('testSplit').value) / 100;
+
+      const { xTrain, yTrain, xTest, yTest } = makeTensors(features, labels, testSplit);
+
+      el('status').innerText = 'Entrenando...';
+      let lastLoss = 0;
+      await model.fit(xTrain, yTrain, {
+        epochs,
+        batchSize: batch,
+        validationData: [xTest, yTest],
+        callbacks: {
+          onEpochEnd: async (epoch, logs) => {
+            el('epochLabel').innerText = (epoch+1) + ' / ' + epochs;
+            el('loss').innerText = (logs.loss||0).toFixed(4);
+            el('acc').innerText = (logs.acc||logs.acc==0? (logs.acc).toFixed(4) : '-');
+            appendLog(`Epoch ${epoch+1}: loss=${(logs.loss||0).toFixed(4)} val_loss=${(logs.val_loss||0).toFixed(4)}`);
+            lastLoss = logs.loss;
+          }
+        }
+      });
+
+      // Evaluación simple y matriz de confusión
+      const preds = model.predict(xTest).round();
+      const predVals = Array.from((await preds.data()));
+      const trueVals = Array.from((await yTest.data()));
+      showConfusionMatrix(trueVals, predVals);
+
+      el('metrics').style.display = 'flex';
+      el('loss').innerText = Number(lastLoss).toFixed(4);
+      const acc = accuracy(trueVals, predVals);
+      el('acc').innerText = acc.toFixed(4);
+
+      appendLog('Entrenamiento completado — accuracy: ' + acc.toFixed(4));
+      xTrain.dispose(); xTest.dispose(); yTrain.dispose(); yTest.dispose(); preds.dispose();
+      el('status').innerText = 'Entrenamiento finalizado';
+    };
+
+    // Evaluar / generar predicciones para todo el dataset
+    el('evalBtn').onclick = async ()=>{
+      if(!model || !features) { alert('Entrena primero un modelo'); return; }
+      const X = tf.tensor2d(features);
+      const yPred = model.predict(X);
+      const probs = Array.from((await yPred.data()));
+      const preds = probs.map(p => p>0.5?1:0);
+      const out = rawData.map((r,i)=> ({ ...r, _pred: preds[i], _prob: probs[i] }) );
+      showPreview(out, true);
+      appendLog('Predicciones generadas ('+out.length+' filas)');
+      X.dispose(); yPred.dispose();
+    };
+
+    // Descargar predicciones
+    el('downloadBtn').onclick = ()=>{
+      if(!rawData || !rawData[0]._pred) { alert('Genera predicciones primero con Evaluar / Predecir'); return; }
+      const csv = Papa.unparse(rawData.map(r=>({PassengerId:r.PassengerId, Survived:r.Survived, Predicted:r._pred, Prob:r._prob})));
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'titanic_predictions.csv'; a.click(); URL.revokeObjectURL(url);
+    };
+
+    // Mostrar datos crudos (preview)
+    el('showData').onclick = ()=>{ if(!rawData) return alert('No hay datos cargados'); showPreview(rawData); };
+
+    // Predicción rápida usando el modelo entrenado
+    el('predictBtn').onclick = async ()=>{
+      if(!model || !normParams) return alert('Entrena primero el modelo para usar esta predicción rápida');
+      const pclass = Number(el('pclass').value);
+      const sex = (el('sex').value==='female')?1:0;
+      const age = Number(el('age').value);
+      const sibsp = Number(el('sibsp').value);
+      const parch = Number(el('parch').value);
+      const fare = Number(el('fare').value);
+
+      const vec = [pclass, sex, age, sibsp, parch, fare];
+      const norm = normalizeVec(vec, normParams);
+      const final = norm.concat([0,0,0]); // Embarked desconocido -> 0,0,0
+      const x = tf.tensor2d([final]);
+      const y = model.predict(x);
+      const prob = (await y.data())[0];
+      const pred = prob>0.5;
+      el('quickResult').innerHTML = `<div class='resultBox'>Probabilidad: <b>${(prob*100).toFixed(2)}%</b> — <b style='color:${pred?"green":"red"}'>${pred?"Sobrevivió":"No sobrevivió"}</b></div>`;
+      x.dispose(); y.dispose();
+    };
+
+    // ---------- Helpers y preprocesado ----------
+    function el(id){ return document.getElementById(id); }
+    function appendLog(s){ const t = new Date().toLocaleTimeString(); logText.innerText = t + ' — ' + s + '\n' + logText.innerText; }
+
+    async function readFileToObjects(file){
+      const name = file.name.toLowerCase();
+      if(name.endsWith('.csv')){
+        const text = await file.text();
+        const parsed = Papa.parse(text, {header:true, dynamicTyping:true}).data;
+        return parsed;
+      } else {
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab, {type:'array'});
+        const first = wb.SheetNames[0];
+        const sheet = wb.Sheets[first];
+        const json = XLSX.utils.sheet_to_json(sheet, {raw:false, defval:null});
+        // convertir números donde sea posible
+        return json.map(r => {
+          const out = {};
+          for(const k in r){
+            const v = r[k];
+            const n = Number(v);
+            out[k] = (v===null || v==='') ? null : (isNaN(n) ? v : n);
+          }
+          return out;
+        });
+      }
+    }
+
+    function showPreview(rows, showPred=false){
+      if(!rows || !rows.length){ el('preview').innerHTML = '<div class="small">No hay datos</div>'; return; }
+      const cols = Object.keys(rows[0]);
+      // mostrar hasta 12 columnas para no desbordar
+      let html = '<table><thead><tr>' + cols.slice(0,12).map(c=>`<th>${escapeHtml(c)}</th>`).join('') + (showPred?'<th>Pred</th><th>Prob</th>':'') + '</tr></thead><tbody>';
+      const sample = rows.slice(0,30);
+      for(const r of sample){
+        html += '<tr>' + cols.slice(0,12).map(c=>`<td>${escapeHtml(String(r[c]===undefined? '': r[c]))}</td>`).join('');
+        if(showPred) html += `<td>${r._pred}</td><td>${Number(r._prob).toFixed(3)}</td>`;
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      el('preview').innerHTML = html;
+    }
+
+    function escapeHtml(s){ return (s+'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    // Preprocesado: convierte filas a features (normaliza y one-hot Embarked)
+    function preprocess(data){
+      const rows = data.map(r => ({...r}));
+      function get(r,k){ return (k in r) ? r[k] : (r[k.trim()]!==undefined ? r[k.trim()] : null); }
+
+      const ages = rows.map(r => { const v = parseNumber(get(r,'Age')); return (v===null?null:v); }).filter(v=>v!==null);
+      const fares = rows.map(r => { const v = parseNumber(get(r,'Fare')); return (v===null?null:v); }).filter(v=>v!==null);
+      const medianAge = median(ages);
+      const medianFare = median(fares);
+
+      const X = []; const y = [];
+      for(const r of rows){
+        const pclass = Number(get(r,'Pclass')) || 3;
+        const sexRaw = String(get(r,'Sex')||'').toLowerCase();
+        const sex = (sexRaw==='female')?1:0;
+        let age = parseNumber(get(r,'Age')); if(age===null) age = medianAge;
+        const sibsp = Number(get(r,'SibSp')) || 0;
+        const parch = Number(get(r,'Parch')) || 0;
+        let fare = parseNumber(get(r,'Fare')); if(fare===null) fare = medianFare || 0;
+        const embarked = (get(r,'Embarked')||get(r,'embarked')||'').toString() || '';
+        const embC = embarked==='C'?1:0;
+        const embQ = embarked==='Q'?1:0;
+        const embS = embarked==='S'?1:0;
+
+        const feat = [pclass, sex, age, sibsp, parch, fare, embC, embQ, embS];
+        X.push(feat);
+        const surv = parseNumber(get(r,'Survived'));
+        y.push((surv===null || isNaN(surv))?0:surv);
+      }
+
+      // Normalizar columnas numéricas (índices 0..5)
+      const arr = tf.tensor2d(X);
+      const numeric = arr.slice([0,0],[arr.shape[0],6]);
+      const min = numeric.min(0);
+      const max = numeric.max(0);
+      const denom = max.sub(min).add(tf.tensor1d(Array(6).fill(1e-6)));
+      const normNumeric = numeric.sub(min).div(denom);
+      const emb = arr.slice([0,6],[arr.shape[0],3]);
+      const final = normNumeric.concat(emb,1);
+      const Xnorm = final.arraySync();
+      const minA = min.arraySync();
+      const maxA = max.arraySync();
+
+      // liberar tensores auxiliares
+      min.dispose(); max.dispose(); arr.dispose(); numeric.dispose(); denom.dispose(); normNumeric.dispose(); emb.dispose(); final.dispose();
+
+      return { X: Xnorm, y, params: { min: minA, max: maxA } };
+    }
+
+    function parseNumber(v){ if(v===null||v===undefined||v==='') return null; const n = Number(v); return isNaN(n)?null:n; }
+    function median(a){ if(!a||!a.length) return 0; const s = Array.from(a).sort((x,y)=>x-y); const m = Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+
+    // Dividir y convertir a tensores
+    function makeTensors(X, y, testSplit){
+      const n = X.length;
+      const idx = [...Array(n).keys()];
+      shuffle(idx);
+      const cut = Math.floor(n*(1-testSplit));
+      const trainIdx = idx.slice(0,cut);
+      const testIdx = idx.slice(cut);
+      const xTrain = tf.tensor2d(trainIdx.map(i=>X[i]));
+      const yTrain = tf.tensor2d(trainIdx.map(i=>[y[i]]));
+      const xTest = tf.tensor2d(testIdx.map(i=>X[i]));
+      const yTest = tf.tensor2d(testIdx.map(i=>[y[i]]));
+      return { xTrain, yTrain, xTest, yTest };
+    }
+
+    function createModel(type, inputDim){
+      const m = tf.sequential();
+      if(type === 'logistic'){
+        m.add(tf.layers.dense({ units: 1, inputShape: [inputDim], activation: 'sigmoid' }));
+        m.compile({ optimizer: tf.train.adam(0.01), loss: 'binaryCrossentropy', metrics: ['acc'] });
+      } else {
+        m.add(tf.layers.dense({ units: 32, inputShape: [inputDim], activation: 'relu' }));
+        m.add(tf.layers.dense({ units: 16, activation: 'relu' }));
+        m.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+        m.compile({ optimizer: tf.train.adam(), loss: 'binaryCrossentropy', metrics: ['acc'] });
+      }
+      return m;
+    }
+
+    function shuffle(array){ for(let i=array.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [array[i], array[j]] = [array[j], array[i]]; } }
+
+    function showConfusionMatrix(trueArr, predArr){
+      let tp=0, tn=0, fp=0, fn=0;
+      for(let i=0;i<trueArr.length;i++){
+        const t = Number(trueArr[i]);
+        const p = Number(predArr[i]);
+        if(t===1 && p===1) tp++;
+        else if(t===0 && p===0) tn++;
+        else if(t===0 && p===1) fp++;
+        else if(t===1 && p===0) fn++;
+      }
+      const html = `<div class="small">Matriz de confusión (test)</div>
+        <table><thead><tr><th></th><th>Pred 0</th><th>Pred 1</th></tr></thead>
+        <tbody>
+          <tr><th>True 0</th><td>${tn}</td><td>${fp}</td></tr>
+          <tr><th>True 1</th><td>${fn}</td><td>${tp}</td></tr>
+        </tbody></table>`;
+      el('confusion').innerHTML = html;
+    }
+
+    function accuracy(trueArr, predArr){ let ok=0; for(let i=0;i<trueArr.length;i++){ if(Number(trueArr[i])===Number(predArr[i])) ok++; } return ok/trueArr.length; }
+
+    function normalizeVec(vec, params){
+      const min = params.min;
+      const max = params.max;
+      const out = [];
+      for(let i=0;i<6;i++){
+        const denom = (max[i]-min[i]) || 1;
+        out.push((vec[i]-min[i]) / denom);
+      }
+      return out;
+    }
+
+    appendLog('Interfaz lista — listo para usar.');
+
+  </script>
+</body>
+</html>
